@@ -40,7 +40,8 @@ const LoginPage = ({ onLogin }: { onLogin: (token: string, admin: any) => void }
       const res = await axios.post(`${API_BASE_URL}/admin/login`, { email, password });
       onLogin(res.data.token, res.data.admin);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Login gagal. Periksa email/password.');
+      const serverError = err.response?.data?.details || err.response?.data?.error || 'Login gagal. Periksa koneksi.';
+      setError(serverError);
     } finally {
       setLoading(false);
     }
