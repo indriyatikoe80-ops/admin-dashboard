@@ -47,7 +47,17 @@ const LoginPage = ({ onLogin }: { onLogin: (token: string, admin: any) => void }
   };
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#0f172a' }}>
+    <div style={{ 
+      display: 'flex', 
+      justifyContent: 'center', 
+      alignItems: 'center', 
+      width: '100vw', 
+      height: '100vh', 
+      background: '#0f172a',
+      position: 'fixed',
+      top: 0,
+      left: 0
+    }}>
       <form onSubmit={handleSubmit} style={{ background: '#1e293b', padding: '40px', borderRadius: '16px', width: '100%', maxWidth: '400px', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}>
         <h2 style={{ textAlign: 'center', marginBottom: '30px', color: '#38bdf8' }}>Admin Login</h2>
         {error && <div style={{ background: '#ef444422', color: '#f87171', padding: '10px', borderRadius: '8px', marginBottom: '20px', fontSize: '14px', border: '1px solid #ef444444' }}>{error}</div>}
