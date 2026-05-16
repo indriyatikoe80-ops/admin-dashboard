@@ -51,12 +51,10 @@ const LoginPage = ({ onLogin }: { onLogin: (token: string, admin: any) => void }
       display: 'flex', 
       justifyContent: 'center', 
       alignItems: 'center', 
-      width: '100vw', 
-      height: '100vh', 
-      background: '#0f172a',
-      position: 'fixed',
-      top: 0,
-      left: 0
+      width: '100%', 
+      minHeight: '100vh', 
+      background: 'radial-gradient(circle at center, #1e293b 0%, #0f172a 100%)',
+      padding: '20px'
     }}>
       <form onSubmit={handleSubmit} style={{ background: '#1e293b', padding: '40px', borderRadius: '16px', width: '100%', maxWidth: '400px', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}>
         <h2 style={{ textAlign: 'center', marginBottom: '30px', color: '#38bdf8' }}>Admin Login</h2>
@@ -206,7 +204,7 @@ function App() {
 
   return (
     <HashRouter>
-      <div style={{ display: 'flex', minHeight: '100vh', background: '#0f172a', color: 'white' }}>
+      <div style={{ display: 'flex', minHeight: '100vh', background: '#0f172a', color: 'white', width: '100%' }}>
         {/* Sidebar */}
         <nav style={{ width: '260px', background: '#1e293b', padding: '30px 20px', borderRight: '1px solid #334155' }}>
           <div style={{ marginBottom: '40px' }}>
