@@ -1,0 +1,15 @@
+name: Keep Hugging Face Awake
+
+on:
+  schedule:
+    # Berjalan setiap 1 jam (Menit ke-0 setiap jam)
+    - cron: '0 * * * *'
+  workflow_dispatch: # Memungkinkan Anda menjalankan secara manual untuk tes
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Hugging Face Space
+        run: |
+          curl -s https://candrabuwana80-api-belajar-anak.hf.space/health
