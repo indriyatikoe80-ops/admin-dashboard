@@ -1,9 +1,12 @@
-import { HashRouter, Routes, Route, Link, Navigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import './App.css';
 
-const API_BASE_URL = 'https://candrabuwana80-api-belajar-anak.hf.space/api';
+// Automatically detect local host or cloud host
+const API_BASE_URL = window.location.origin.includes('localhost') 
+  ? 'http://localhost:5000/api' 
+  : 'https://candrabuwana80-api-belajar-anak.hf.space/api';
 
 // --- STYLES & THEME ---
 const theme = {
@@ -166,7 +169,7 @@ const DashboardHome = () => {
   return (
     <div style={{ padding: '40px' }}>
       <div style={{ marginBottom: '32px' }}>
-        <h2 style={{ fontSize: '24px', fontWeight: '700', marginBottom: '8px' }}>Dashboard Overview</h2>
+        <h2 style={{ fontSize: '28px', fontWeight: '800', marginBottom: '8px' }}>Dashboard Overview</h2>
         <p style={{ color: theme.textMuted }}>Pantau aktivitas lisensi dan pesanan Anda di sini.</p>
       </div>
 
@@ -182,6 +185,234 @@ const DashboardHome = () => {
           </div>
         ))}
       </div>
+    </div>
+  );
+};
+
+const RequestsManagement = () => {
+  const [requests, setRequests] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  const fetchRequests = async () => {
+    try {
+      const token = localStorage.getItem('admin_token');
+      const res = await axios.get(`${API_BASE_URL}/admin/all-requests`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setRequests(res.data.requests);
+    } catch (err) {
+      console.error('Failed to fetch requests', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRequests();
+  }, []);
+
+  const handleApprove = async (id: number) => {
+    if (!window.confirm('Setujui pembayaran dan kirimkan kode lisensi premium?')) return;
+    setActionLoading(`approve-${id}`);
+    try {
+      const token = localStorage.getItem('admin_token');
+      const res = await axios.post(`${API_BASE_URL}/admin/approve-request/${id}`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      alert(`Sukses disetujui! Kode lisensi generated: ${res.data.license_code}`);
+      fetchRequests();
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Gagal menyetujui request');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleReject = async (id: number) => {
+    const reason = window.prompt('Masukkan alasan penolakan bukti pembayaran:');
+    if (reason === null) return;
+    if (!reason.trim()) return alert('Alasan penolakan wajib diisi!');
+
+    setActionLoading(`reject-${id}`);
+    try {
+      const token = localStorage.getItem('admin_token');
+      await axios.post(`${API_BASE_URL}/admin/reject-request/${id}`, { reason }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      alert('Pesan penolakan berhasil dikirim ke user.');
+      fetchRequests();
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Gagal menolak request');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleResendEmail = async (id: number) => {
+    setActionLoading(`email-${id}`);
+    try {
+      const token = localStorage.getItem('admin_token');
+      await axios.post(`${API_BASE_URL}/admin/resend-email/${id}`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      alert('Kode lisensi berhasil dikirim ulang ke EMAIL pengguna!');
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Gagal mengirim ulang email');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleResendWA = async (id: number) => {
+    setActionLoading(`wa-${id}`);
+    try {
+      const token = localStorage.getItem('admin_token');
+      await axios.post(`${API_BASE_URL}/admin/resend-whatsapp/${id}`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      alert('Kode lisensi berhasil dikirim ulang ke WHATSAPP pengguna!');
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Gagal mengirim ulang WhatsApp');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  return (
+    <div style={{ padding: '40px' }}>
+      <div style={{ marginBottom: '32px' }}>
+        <h2 style={{ fontSize: '28px', fontWeight: '800', marginBottom: '8px' }}>Permintaan Lisensi</h2>
+        <p style={{ color: theme.textMuted }}>Review bukti pembayaran dan verifikasi lisensi pembeli.</p>
+      </div>
+
+      {loading ? <p style={{ color: theme.textMuted }}>Memuat data permintaan...</p> : (
+        <div style={{ ...cardStyle, padding: 0, overflow: 'hidden' }}>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+              <thead>
+                <tr style={{ borderBottom: `1px solid ${theme.border}`, background: 'rgba(255,255,255,0.02)' }}>
+                  <th style={{ padding: '18px 24px', fontSize: '13px', fontWeight: '600', color: theme.textMuted }}>WAKTU</th>
+                  <th style={{ padding: '18px 24px', fontSize: '13px', fontWeight: '600', color: theme.textMuted }}>USER EMAIL</th>
+                  <th style={{ padding: '18px 24px', fontSize: '13px', fontWeight: '600', color: theme.textMuted }}>WHATSAPP</th>
+                  <th style={{ padding: '18px 24px', fontSize: '13px', fontWeight: '600', color: theme.textMuted }}>DURASI</th>
+                  <th style={{ padding: '18px 24px', fontSize: '13px', fontWeight: '600', color: theme.textMuted }}>BUKTI BAYAR</th>
+                  <th style={{ padding: '18px 24px', fontSize: '13px', fontWeight: '600', color: theme.textMuted }}>STATUS</th>
+                  <th style={{ padding: '18px 24px', fontSize: '13px', fontWeight: '600', color: theme.textMuted, textAlign: 'center' }}>AKSI & KIRIM ULANG</th>
+                </tr>
+              </thead>
+              <tbody>
+                {requests.map((req: any) => (
+                  <tr key={req.id} style={{ borderBottom: `1px solid ${theme.border}`, transition: 'background 0.2s' }}>
+                    <td style={{ padding: '18px 24px', color: theme.textMuted, fontSize: '13px' }}>
+                      {new Date(req.requested_at).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    </td>
+                    <td style={{ padding: '18px 24px', fontWeight: '600', color: theme.text }}>{req.email}</td>
+                    <td style={{ padding: '18px 24px', color: theme.text }}>{req.whatsapp || '-'}</td>
+                    <td style={{ padding: '18px 24px', color: theme.accent, fontWeight: '700' }}>{req.duration}</td>
+                    <td style={{ padding: '18px 24px' }}>
+                      {req.payment_proof_path ? (
+                        <img 
+                          src={`${API_BASE_URL.replace('/api', '')}${req.payment_proof_path}`} 
+                          alt="Bukti Transfer" 
+                          style={{ width: '48px', height: '48px', objectFit: 'cover', borderRadius: '8px', border: `1px solid ${theme.border}`, cursor: 'zoom-in' }}
+                          onClick={() => setSelectedImage(`${API_BASE_URL.replace('/api', '')}${req.payment_proof_path}`)}
+                        />
+                      ) : '-'}
+                    </td>
+                    <td style={{ padding: '18px 24px' }}>
+                      <span style={{ 
+                        padding: '4px 10px', 
+                        borderRadius: '6px', 
+                        fontSize: '11px', 
+                        fontWeight: '700',
+                        background: req.status === 'APPROVED' ? '#065f4633' : req.status === 'PENDING' ? '#78350f33' : '#7f1d1d33', 
+                        color: req.status === 'APPROVED' ? theme.success : req.status === 'PENDING' ? theme.warning : theme.danger,
+                        border: `1px solid ${req.status === 'APPROVED' ? '#065f4655' : req.status === 'PENDING' ? '#78350f55' : '#7f1d1d55'}`
+                      }}>
+                        {req.status}
+                      </span>
+                    </td>
+                    <td style={{ padding: '18px 24px', textAlign: 'center' }}>
+                      {req.status === 'PENDING' ? (
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                          <button 
+                            disabled={actionLoading !== null}
+                            onClick={() => handleApprove(req.id)}
+                            style={{ padding: '8px 14px', borderRadius: '8px', border: 'none', background: theme.success, color: 'white', fontWeight: '700', fontSize: '13px', cursor: 'pointer' }}
+                          >
+                            {actionLoading === `approve-${req.id}` ? '✓...' : 'Setujui'}
+                          </button>
+                          <button 
+                            disabled={actionLoading !== null}
+                            onClick={() => handleReject(req.id)}
+                            style={{ padding: '8px 14px', borderRadius: '8px', border: 'none', background: theme.danger, color: 'white', fontWeight: '700', fontSize: '13px', cursor: 'pointer' }}
+                          >
+                            {actionLoading === `reject-${req.id}` ? '✗...' : 'Tolak'}
+                          </button>
+                        </div>
+                      ) : req.status === 'APPROVED' ? (
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                          <button 
+                            disabled={actionLoading !== null}
+                            onClick={() => handleResendEmail(req.id)}
+                            style={{ padding: '8px 12px', borderRadius: '8px', border: `1px solid ${theme.accent}`, background: 'transparent', color: theme.accent, fontWeight: '600', fontSize: '12px', cursor: 'pointer' }}
+                            title="Kirim Ulang Lisensi ke Email Pengguna"
+                          >
+                            📧 Kirim Ulang Email
+                          </button>
+                          <button 
+                            disabled={actionLoading !== null || !req.whatsapp}
+                            onClick={() => handleResendWA(req.id)}
+                            style={{ 
+                              padding: '8px 12px', 
+                              borderRadius: '8px', 
+                              border: `1px solid ${req.whatsapp ? '#25D366' : theme.border}`, 
+                              background: 'transparent', 
+                              color: req.whatsapp ? '#25D366' : theme.textMuted, 
+                              fontWeight: '600', 
+                              fontSize: '12px', 
+                              cursor: req.whatsapp ? 'pointer' : 'not-allowed',
+                              opacity: req.whatsapp ? 1 : 0.5
+                            }}
+                            title={req.whatsapp ? "Kirim Ulang Lisensi ke WhatsApp Pengguna" : "Pengguna tidak mencantumkan nomor WhatsApp"}
+                          >
+                            💬 Kirim Ulang WA
+                          </button>
+                        </div>
+                      ) : (
+                        <span style={{ color: theme.textMuted, fontSize: '12px' }}>Ditolak: "{req.rejection_reason || '-'}"</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+                {requests.length === 0 && (
+                  <tr>
+                    <td colSpan={7} style={{ padding: '48px', textAlign: 'center', color: theme.textMuted }}>
+                      Belum ada data permintaan lisensi.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Lightbox / Modal Image Preview */}
+      {selectedImage && (
+        <div 
+          onClick={() => setSelectedImage(null)}
+          style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.85)', zIndex: 9999, display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'zoom-out' }}
+        >
+          <img 
+            src={selectedImage} 
+            alt="Full Preview" 
+            style={{ maxWidth: '90%', maxHeight: '90%', objectFit: 'contain', borderRadius: '12px', boxShadow: '0 10px 40px rgba(0,0,0,0.5)' }} 
+          />
+        </div>
+      )}
     </div>
   );
 };
@@ -210,7 +441,7 @@ const LicenseManagement = () => {
   return (
     <div style={{ padding: '40px' }}>
       <div style={{ marginBottom: '32px' }}>
-        <h2 style={{ fontSize: '24px', fontWeight: '700', marginBottom: '8px' }}>Manajemen Lisensi</h2>
+        <h2 style={{ fontSize: '28px', fontWeight: '800', marginBottom: '8px' }}>Manajemen Lisensi</h2>
         <p style={{ color: theme.textMuted }}>Daftar seluruh lisensi yang terdaftar di sistem.</p>
       </div>
 
@@ -265,7 +496,362 @@ const LicenseManagement = () => {
   );
 };
 
-// --- MAIN APP ---
+const SettingsManagement = () => {
+  const [configs, setConfigs] = useState<any>({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState('');
+
+  const fetchConfigs = async () => {
+    try {
+      const token = localStorage.getItem('admin_token');
+      const res = await axios.get(`${API_BASE_URL}/admin/system-config`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const configMap: any = {};
+      res.data.configs.forEach((item: any) => {
+        configMap[item.config_key] = item.config_value;
+      });
+      setConfigs(configMap);
+    } catch (err) {
+      console.error('Failed to fetch system configs', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchConfigs();
+  }, []);
+
+  const handleChange = (key: string, value: string) => {
+    setConfigs((prev: any) => ({
+      ...prev,
+      [key]: value
+    }));
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    setMessage('');
+    try {
+      const token = localStorage.getItem('admin_token');
+      const payload = Object.keys(configs).map(key => ({
+        config_key: key,
+        config_value: configs[key]
+      }));
+      await axios.post(`${API_BASE_URL}/admin/system-config`, payload, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setMessage('✓ Konfigurasi berhasil disimpan!');
+      setTimeout(() => setMessage(''), 3000);
+      fetchConfigs();
+    } catch (err) {
+      alert('Gagal menyimpan konfigurasi');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return <div style={{ padding: '40px', color: theme.textMuted }}>Mengambil data konfigurasi...</div>;
+
+  return (
+    <div style={{ padding: '40px', maxWidth: '800px' }}>
+      <div style={{ marginBottom: '32px' }}>
+        <h2 style={{ fontSize: '28px', fontWeight: '800', marginBottom: '8px' }}>Pengaturan Lisensi & Harga</h2>
+        <p style={{ color: theme.textMuted }}>Sesuaikan harga paket, biaya administrasi, dan informasi bank pembayaran di sini.</p>
+      </div>
+
+      {message && (
+        <div style={{ background: '#10b98115', color: '#34d399', padding: '16px', borderRadius: '12px', marginBottom: '24px', fontSize: '14px', border: '1px solid #10b98133', fontWeight: 'bold' }}>
+          {message}
+        </div>
+      )}
+
+      <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        {/* BANK ACCOUNT */}
+        <div style={cardStyle}>
+          <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', color: theme.accent }}>💳 Rekening Bank Pembayaran</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <div>
+              <label style={{ fontSize: '13px', fontWeight: '500', color: theme.textMuted }}>Nomor Rekening BCA</label>
+              <input 
+                type="text" 
+                value={configs['bca_number'] || '1234567890'} 
+                onChange={(e) => handleChange('bca_number', e.target.value)} 
+                style={inputStyle}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: '13px', fontWeight: '500', color: theme.textMuted }}>Nama Pemilik Rekening</label>
+              <input 
+                type="text" 
+                value={configs['bca_name'] || 'Aplikasi Belajar Anak'} 
+                onChange={(e) => handleChange('bca_name', e.target.value)} 
+                style={inputStyle}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* PACKAGE 1 MONTH */}
+        <div style={cardStyle}>
+          <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', color: theme.accent }}>📦 Paket Premium 1 Bulan</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+            <div>
+              <label style={{ fontSize: '13px', fontWeight: '500', color: theme.textMuted }}>Harga Asli (Coret) (Rp)</label>
+              <input 
+                type="number" 
+                value={configs['original_price_1_month'] || '35000'} 
+                onChange={(e) => handleChange('original_price_1_month', e.target.value)} 
+                style={inputStyle}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: '13px', fontWeight: '500', color: theme.textMuted }}>Harga Promo (Rp)</label>
+              <input 
+                type="number" 
+                value={configs['price_1_month'] || '15000'} 
+                onChange={(e) => handleChange('price_1_month', e.target.value)} 
+                style={inputStyle}
+              />
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <div>
+              <label style={{ fontSize: '13px', fontWeight: '500', color: theme.textMuted }}>Biaya Administrasi (Rp)</label>
+              <input 
+                type="number" 
+                value={configs['fee_1_month'] || '1000'} 
+                onChange={(e) => handleChange('fee_1_month', e.target.value)} 
+                style={inputStyle}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: '13px', fontWeight: '500', color: theme.textMuted }}>Label Promo</label>
+              <input 
+                type="text" 
+                value={configs['promo_1_month'] || 'Diskon 57%'} 
+                onChange={(e) => handleChange('promo_1_month', e.target.value)} 
+                style={inputStyle}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* PACKAGE 6 MONTHS */}
+        <div style={cardStyle}>
+          <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', color: theme.accent }}>📦 Paket Premium 6 Bulan</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+            <div>
+              <label style={{ fontSize: '13px', fontWeight: '500', color: theme.textMuted }}>Harga Asli (Coret) (Rp)</label>
+              <input 
+                type="number" 
+                value={configs['original_price_6_months'] || '120000'} 
+                onChange={(e) => handleChange('original_price_6_months', e.target.value)} 
+                style={inputStyle}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: '13px', fontWeight: '500', color: theme.textMuted }}>Harga Promo (Rp)</label>
+              <input 
+                type="number" 
+                value={configs['price_6_months'] || '50000'} 
+                onChange={(e) => handleChange('price_6_months', e.target.value)} 
+                style={inputStyle}
+              />
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <div>
+              <label style={{ fontSize: '13px', fontWeight: '500', color: theme.textMuted }}>Biaya Administrasi (Rp)</label>
+              <input 
+                type="number" 
+                value={configs['fee_6_months'] || '2000'} 
+                onChange={(e) => handleChange('fee_6_months', e.target.value)} 
+                style={inputStyle}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: '13px', fontWeight: '500', color: theme.textMuted }}>Label Promo</label>
+              <input 
+                type="text" 
+                value={configs['promo_6_months'] || 'Diskon 58%'} 
+                onChange={(e) => handleChange('promo_6_months', e.target.value)} 
+                style={inputStyle}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* PACKAGE LIFETIME */}
+        <div style={cardStyle}>
+          <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', color: theme.accent }}>📦 Paket Premium Selamanya (Lifetime)</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+            <div>
+              <label style={{ fontSize: '13px', fontWeight: '500', color: theme.textMuted }}>Harga Asli (Coret) (Rp)</label>
+              <input 
+                type="number" 
+                value={configs['original_price_lifetime'] || '250000'} 
+                onChange={(e) => handleChange('original_price_lifetime', e.target.value)} 
+                style={inputStyle}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: '13px', fontWeight: '500', color: theme.textMuted }}>Harga Promo (Rp)</label>
+              <input 
+                type="number" 
+                value={configs['price_lifetime'] || '99000'} 
+                onChange={(e) => handleChange('price_lifetime', e.target.value)} 
+                style={inputStyle}
+              />
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <div>
+              <label style={{ fontSize: '13px', fontWeight: '500', color: theme.textMuted }}>Biaya Administrasi (Rp)</label>
+              <input 
+                type="number" 
+                value={configs['fee_lifetime'] || '3000'} 
+                onChange={(e) => handleChange('fee_lifetime', e.target.value)} 
+                style={inputStyle}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: '13px', fontWeight: '500', color: theme.textMuted }}>Label Promo</label>
+              <input 
+                type="text" 
+                value={configs['promo_lifetime'] || 'Diskon 60%'} 
+                onChange={(e) => handleChange('promo_lifetime', e.target.value)} 
+                style={inputStyle}
+              />
+            </div>
+          </div>
+        </div>
+
+        <button 
+          type="submit" 
+          disabled={saving} 
+          style={{ 
+            padding: '16px', 
+            borderRadius: '10px', 
+            border: 'none', 
+            background: theme.accent, 
+            color: theme.bg, 
+            fontWeight: '700', 
+            fontSize: '16px',
+            cursor: saving ? 'not-allowed' : 'pointer', 
+            boxShadow: `0 4px 14px 0 rgba(56, 189, 248, 0.39)`,
+            textAlign: 'center'
+          }}
+        >
+          {saving ? 'Menyimpan...' : 'Simpan Semua Pengaturan'}
+        </button>
+      </form>
+    </div>
+  );
+};
+
+// --- MAIN APP INNER ---
+
+const AppContent = ({ admin, handleLogout }: { admin: any, handleLogout: () => void }) => {
+  const location = useLocation();
+
+  const getLinkStyle = (path: string) => {
+    const isActive = location.pathname === path;
+    return {
+      display: 'flex',
+      alignItems: 'center',
+      padding: '14px 20px',
+      borderRadius: '12px',
+      background: isActive ? 'rgba(56, 189, 248, 0.08)' : 'transparent',
+      color: isActive ? theme.accent : theme.textMuted,
+      fontWeight: '600',
+      marginBottom: '8px',
+      textDecoration: 'none',
+      fontSize: '15px',
+      transition: 'all 0.2s',
+      borderLeft: isActive ? `4px solid ${theme.accent}` : '4px solid transparent',
+    };
+  };
+
+  return (
+    <div style={{ display: 'flex', minHeight: '100vh', background: theme.bg, color: theme.text }}>
+      {/* Sidebar */}
+      <nav style={{ 
+        width: '280px', 
+        background: theme.sidebar, 
+        padding: '40px 24px', 
+        borderRight: `1px solid ${theme.border}`,
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100vh',
+        position: 'sticky',
+        top: 0
+      }}>
+        <div style={{ marginBottom: '48px', padding: '0 8px' }}>
+          <h1 style={{ fontSize: '22px', fontWeight: '800', color: theme.accent, letterSpacing: '-0.02em', margin: 0 }}>Aplikasi Belajar Anak</h1>
+          <p style={{ fontSize: '11px', fontWeight: '700', color: theme.textMuted, marginTop: '4px', letterSpacing: '0.05em' }}>CONTROL PANEL</p>
+        </div>
+        
+        <div style={{ flex: 1 }}>
+          <Link to="/" style={getLinkStyle('/')}>
+             📊 Dashboard Overview
+          </Link>
+          <Link to="/requests" style={getLinkStyle('/requests')}>
+             📩 Permintaan Lisensi
+          </Link>
+          <Link to="/licenses" style={getLinkStyle('/licenses')}>
+             🔑 Lisensi Aktif
+          </Link>
+          <Link to="/settings" style={getLinkStyle('/settings')}>
+             ⚙️ Pengaturan Lisensi
+          </Link>
+        </div>
+
+        <div style={{ marginTop: 'auto' }}>
+          <div style={{ padding: '16px', background: 'rgba(0,0,0,0.2)', borderRadius: '14px', marginBottom: '16px', border: `1px solid ${theme.border}` }}>
+            <p style={{ margin: 0, fontSize: '14px', fontWeight: '600' }}>{admin?.name}</p>
+            <p style={{ margin: 0, fontSize: '12px', color: theme.textMuted }}>{admin?.role}</p>
+          </div>
+          <button 
+            onClick={handleLogout} 
+            style={{ 
+              width: '100%', 
+              padding: '12px', 
+              borderRadius: '10px', 
+              border: '1px solid rgba(239, 68, 68, 0.2)', 
+              background: 'transparent', 
+              color: '#f87171', 
+              fontSize: '14px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'background 0.2s'
+            }}
+            onMouseOver={(e) => (e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)')}
+            onMouseOut={(e) => (e.currentTarget.style.background = 'transparent')}
+          >
+            Sign Out
+          </button>
+        </div>
+      </nav>
+
+      {/* Content Area */}
+      <main style={{ flex: 1, height: '100vh', overflowY: 'auto', background: `radial-gradient(circle at bottom left, #0f172a, #1e293b)` }}>
+        <Routes>
+          <Route path="/" element={<DashboardHome />} />
+          <Route path="/requests" element={<RequestsManagement />} />
+          <Route path="/licenses" element={<LicenseManagement />} />
+          <Route path="/settings" element={<SettingsManagement />} />
+          <Route path="*" element={<Navigate to="/" />} />
+        </Routes>
+      </main>
+    </div>
+  );
+};
+
+// --- MAIN WRAPPER ---
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem('admin_token'));
@@ -289,63 +875,7 @@ function App() {
 
   return (
     <HashRouter>
-      <div style={{ display: 'flex', minHeight: '100vh', background: theme.bg, color: theme.text }}>
-        {/* Sidebar */}
-        <nav style={{ 
-          width: '280px', 
-          background: theme.sidebar, 
-          padding: '40px 24px', 
-          borderRight: `1px solid ${theme.border}`,
-          display: 'flex',
-          flexDirection: 'column'
-        }}>
-          <div style={{ marginBottom: '48px', padding: '0 8px' }}>
-            <h1 style={{ fontSize: '22px', fontWeight: '800', color: theme.accent, letterSpacing: '-0.02em', margin: 0 }}>Taman Belajar</h1>
-            <p style={{ fontSize: '12px', fontWeight: '600', color: theme.textMuted, marginTop: '4px' }}>CONTROL PANEL</p>
-          </div>
-          
-          <div style={{ flex: 1 }}>
-            <Link to="/" style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderRadius: '12px', background: 'rgba(56, 189, 248, 0.1)', color: theme.accent, fontWeight: '600', marginBottom: '8px' }}>
-               Dashboard
-            </Link>
-            <Link to="/licenses" style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderRadius: '12px', color: theme.textMuted, fontWeight: '500', marginBottom: '8px' }}>
-               Licenses
-            </Link>
-          </div>
-
-          <div style={{ marginTop: 'auto' }}>
-            <div style={{ padding: '16px', background: 'rgba(0,0,0,0.2)', borderRadius: '14px', marginBottom: '16px' }}>
-              <p style={{ margin: 0, fontSize: '14px', fontWeight: '600' }}>{admin?.name}</p>
-              <p style={{ margin: 0, fontSize: '12px', color: theme.textMuted }}>{admin?.role}</p>
-            </div>
-            <button 
-              onClick={handleLogout} 
-              style={{ 
-                width: '100%', 
-                padding: '12px', 
-                borderRadius: '10px', 
-                border: '1px solid rgba(239, 68, 68, 0.2)', 
-                background: 'transparent', 
-                color: '#f87171', 
-                fontSize: '14px',
-                fontWeight: '600',
-                cursor: 'pointer' 
-              }}
-            >
-              Sign Out
-            </button>
-          </div>
-        </nav>
-
-        {/* Content */}
-        <main style={{ flex: 1, height: '100vh', overflowY: 'auto' }}>
-          <Routes>
-            <Route path="/" element={<DashboardHome />} />
-            <Route path="/licenses" element={<LicenseManagement />} />
-            <Route path="*" element={<Navigate to="/" />} />
-          </Routes>
-        </main>
-      </div>
+      <AppContent admin={admin} handleLogout={handleLogout} />
     </HashRouter>
   );
 }
