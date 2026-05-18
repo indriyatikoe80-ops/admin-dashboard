@@ -573,9 +573,18 @@ const SettingsManagement = () => {
         {/* BANK ACCOUNT */}
         <div style={cardStyle}>
           <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', color: theme.accent }}>💳 Rekening Bank Pembayaran</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
             <div>
-              <label style={{ fontSize: '13px', fontWeight: '500', color: theme.textMuted }}>Nomor Rekening BCA</label>
+              <label style={{ fontSize: '13px', fontWeight: '500', color: theme.textMuted }}>Nama Bank (misal: BCA, Mandiri)</label>
+              <input 
+                type="text" 
+                value={configs['bank_name'] || 'BCA'} 
+                onChange={(e) => handleChange('bank_name', e.target.value)} 
+                style={inputStyle}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: '13px', fontWeight: '500', color: theme.textMuted }}>Nomor Rekening</label>
               <input 
                 type="text" 
                 value={configs['bca_number'] || '1234567890'} 
