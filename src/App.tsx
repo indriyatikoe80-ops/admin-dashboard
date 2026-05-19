@@ -5,7 +5,7 @@ import './App.css';
 
 // Automatically detect local host or cloud host
 const API_BASE_URL = window.location.origin.includes('localhost') 
-  ? 'http://localhost:5000/api' 
+  ? 'http://localhost:3001/api' 
   : 'https://candrabuwana80-api-belajar-anak.hf.space/api';
 
 // --- STYLES & THEME ---
@@ -162,7 +162,8 @@ const DashboardHome = () => {
   const statItems = [
     { label: 'Pesanan Pending', value: stats?.pending_requests || 0, color: theme.warning },
     { label: 'Lisensi Aktif', value: stats?.active_licenses || 0, color: theme.success },
-    { label: 'Total Lisensi', value: stats?.total_licenses || 0, color: theme.accent },
+    { label: 'Settled Midtrans', value: stats?.midtrans_settled || 0, color: theme.accent },
+    { label: 'Revenue Midtrans', value: stats?.midtrans_revenue != null ? `Rp ${Number(stats.midtrans_revenue).toLocaleString('id-ID')}` : 'Rp 0', color: theme.success },
     { label: 'Total Pesanan', value: stats?.total_requests || 0, color: '#a78bfa' },
   ];
 
@@ -496,6 +497,87 @@ const LicenseManagement = () => {
   );
 };
 
+const MidtransTransactions = () => {
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      try {
+        const token = localStorage.getItem('admin_token');
+        const res = await axios.get(`${API_BASE_URL}/admin/midtrans-transactions`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setTransactions(res.data.transactions);
+      } catch (err) {
+        console.error('Failed to fetch transactions', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchTransactions();
+  }, []);
+
+  return (
+    <div style={{ padding: '40px' }}>
+      <div style={{ marginBottom: '32px' }}>
+        <h2 style={{ fontSize: '28px', fontWeight: '800', marginBottom: '8px' }}>Transaksi Midtrans</h2>
+        <p style={{ color: theme.textMuted }}>Riwayat pembayaran otomatis via Midtrans Snap.</p>
+      </div>
+
+      {loading ? <p style={{ color: theme.textMuted }}>Memuat data transaksi...</p> : (
+        <div style={{ ...cardStyle, padding: 0, overflow: 'hidden' }}>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+              <thead>
+                <tr style={{ borderBottom: `1px solid ${theme.border}`, background: 'rgba(255,255,255,0.02)' }}>
+                  <th style={{ padding: '18px 24px', fontSize: '13px', fontWeight: '600', color: theme.textMuted }}>ORDER ID</th>
+                  <th style={{ padding: '18px 24px', fontSize: '13px', fontWeight: '600', color: theme.textMuted }}>EMAIL</th>
+                  <th style={{ padding: '18px 24px', fontSize: '13px', fontWeight: '600', color: theme.textMuted }}>PAKET</th>
+                  <th style={{ padding: '18px 24px', fontSize: '13px', fontWeight: '600', color: theme.textMuted }}>NOMINAL</th>
+                  <th style={{ padding: '18px 24px', fontSize: '13px', fontWeight: '600', color: theme.textMuted }}>STATUS</th>
+                  <th style={{ padding: '18px 24px', fontSize: '13px', fontWeight: '600', color: theme.textMuted }}>KODE LISENSI</th>
+                </tr>
+              </thead>
+              <tbody>
+                {transactions.map((trx: any) => (
+                  <tr key={trx.id} style={{ borderBottom: `1px solid ${theme.border}`, transition: 'background 0.2s' }}>
+                    <td style={{ padding: '18px 24px', color: theme.text, fontSize: '13px' }}>{trx.order_id}</td>
+                    <td style={{ padding: '18px 24px', fontWeight: '600', color: theme.text }}>{trx.email}</td>
+                    <td style={{ padding: '18px 24px', color: theme.accent, fontWeight: '700' }}>{trx.duration}</td>
+                    <td style={{ padding: '18px 24px', color: theme.success, fontWeight: '700' }}>Rp {Number(trx.gross_amount || 0).toLocaleString('id-ID')}</td>
+                    <td style={{ padding: '18px 24px' }}>
+                      <span style={{ 
+                        padding: '4px 10px', 
+                        borderRadius: '6px', 
+                        fontSize: '11px', 
+                        fontWeight: '700',
+                        background: trx.status === 'SETTLEMENT' ? '#065f4633' : trx.status === 'PENDING' ? '#78350f33' : '#7f1d1d33', 
+                        color: trx.status === 'SETTLEMENT' ? theme.success : trx.status === 'PENDING' ? theme.warning : theme.danger,
+                        border: `1px solid ${trx.status === 'SETTLEMENT' ? '#065f4655' : trx.status === 'PENDING' ? '#78350f55' : '#7f1d1d55'}`
+                      }}>
+                        {trx.status}
+                      </span>
+                    </td>
+                    <td style={{ padding: '18px 24px', color: theme.accent, fontWeight: '700' }}>{trx.license_code || '-'}</td>
+                  </tr>
+                ))}
+                {transactions.length === 0 && (
+                  <tr>
+                    <td colSpan={6} style={{ padding: '48px', textAlign: 'center', color: theme.textMuted }}>
+                      Belum ada data transaksi Midtrans.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const SettingsManagement = () => {
   const [configs, setConfigs] = useState<any>({});
   const [loading, setLoading] = useState(true);
@@ -559,8 +641,8 @@ const SettingsManagement = () => {
   return (
     <div style={{ padding: '40px', maxWidth: '800px' }}>
       <div style={{ marginBottom: '32px' }}>
-        <h2 style={{ fontSize: '28px', fontWeight: '800', marginBottom: '8px' }}>Pengaturan Lisensi & Harga</h2>
-        <p style={{ color: theme.textMuted }}>Sesuaikan harga paket, biaya administrasi, dan informasi bank pembayaran di sini.</p>
+        <h2 style={{ fontSize: '28px', fontWeight: '800', marginBottom: '8px' }}>Pengaturan Harga Lisensi</h2>
+        <p style={{ color: theme.textMuted }}>Sesuaikan harga paket dan biaya administrasi di sini.</p>
       </div>
 
       {message && (
@@ -570,39 +652,6 @@ const SettingsManagement = () => {
       )}
 
       <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-        {/* BANK ACCOUNT */}
-        <div style={cardStyle}>
-          <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', color: theme.accent }}>💳 Rekening Bank Pembayaran</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
-            <div>
-              <label style={{ fontSize: '13px', fontWeight: '500', color: theme.textMuted }}>Nama Bank (misal: BCA, Mandiri)</label>
-              <input 
-                type="text" 
-                value={configs['bank_name'] || 'BCA'} 
-                onChange={(e) => handleChange('bank_name', e.target.value)} 
-                style={inputStyle}
-              />
-            </div>
-            <div>
-              <label style={{ fontSize: '13px', fontWeight: '500', color: theme.textMuted }}>Nomor Rekening</label>
-              <input 
-                type="text" 
-                value={configs['bca_number'] || '1234567890'} 
-                onChange={(e) => handleChange('bca_number', e.target.value)} 
-                style={inputStyle}
-              />
-            </div>
-            <div>
-              <label style={{ fontSize: '13px', fontWeight: '500', color: theme.textMuted }}>Nama Pemilik Rekening</label>
-              <input 
-                type="text" 
-                value={configs['bca_name'] || 'Aplikasi Belajar Anak'} 
-                onChange={(e) => handleChange('bca_name', e.target.value)} 
-                style={inputStyle}
-              />
-            </div>
-          </div>
-        </div>
 
         {/* PACKAGE 1 MONTH */}
         <div style={cardStyle}>
@@ -811,11 +860,14 @@ const AppContent = ({ admin, handleLogout }: { admin: any, handleLogout: () => v
           <Link to="/requests" style={getLinkStyle('/requests')}>
              📩 Permintaan Lisensi
           </Link>
+          <Link to="/transactions" style={getLinkStyle('/transactions')}>
+             💳 Transaksi Midtrans
+          </Link>
           <Link to="/licenses" style={getLinkStyle('/licenses')}>
              🔑 Lisensi Aktif
           </Link>
           <Link to="/settings" style={getLinkStyle('/settings')}>
-             ⚙️ Pengaturan Lisensi
+             ⚙️ Pengaturan Harga
           </Link>
         </div>
 
@@ -851,6 +903,7 @@ const AppContent = ({ admin, handleLogout }: { admin: any, handleLogout: () => v
         <Routes>
           <Route path="/" element={<DashboardHome />} />
           <Route path="/requests" element={<RequestsManagement />} />
+          <Route path="/transactions" element={<MidtransTransactions />} />
           <Route path="/licenses" element={<LicenseManagement />} />
           <Route path="/settings" element={<SettingsManagement />} />
           <Route path="*" element={<Navigate to="/" />} />
